@@ -1,18 +1,62 @@
-from flask import Flask
+from flask import Flask, render_template_string
 from supabase import create_client
 import os
 
 app = Flask(__name__)
 
-# Connect to Supabase
-url = os.environ.get("SUPABASE_URL")
-key = os.environ.get("SUPABASE_KEY")
+# Supabase config
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
-@app.route("/")
-def home():
-    products = supabase.table("products").select("*").execute().data or []
-    return str(products)
+# HTML template
+report_template = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+        th { background-color: #007BFF; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h2>📦 Inventory Report</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>Quantity</th>
+                <th>Cost Price</th>
+                <th>Selling Price</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in products %}
+            <tr>
+                <td>{{ p['name'] }}</td>
+                <td>{{ p['sku'] }}</td>
+                <td>{{ p['quantity'] }}</td>
+                <td>{{ p['price'] }}</td>
+                <td>{{ p['selling_price'] }}</td>
+                <td>{{ p['created_at'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+"""
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+@app.route("/")
+def index():
+    data = supabase.table("products").select("*").execute()
+    products = data.data
+    return render_template_string(report_template, products=products)
