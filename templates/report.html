@@ -4,16 +4,41 @@
   <meta charset="UTF-8">
   <title>Inventory Report</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; background: #fff; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
-    th { background: #007bff; color: white; }
-    .logout { margin-bottom: 15px; display: inline-block; }
+    body { font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px; }
+    h1 { text-align: center; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background: #007bff;
+      color: white;
+    }
+    tr:nth-child(even) { background: #f2f2f2; }
+    .logout {
+      display: block;
+      margin: 20px auto;
+      width: 150px;
+      text-align: center;
+      background: #dc3545;
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+    .logout:hover { background: #b02a37; }
   </style>
 </head>
 <body>
-  <h2>📦 Inventory Report</h2>
-  <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+  <h1>📦 Inventory Report</h1>
   <table>
     <thead>
       <tr>
@@ -26,17 +51,19 @@
       </tr>
     </thead>
     <tbody>
-      {% for product in products %}
+      {% for row in rows %}
       <tr>
-        <td>{{ product.name }}</td>
-        <td>{{ product.sku }}</td>
-        <td>{{ product.quantity }}</td>
-        <td>{{ product.price }}</td>
-        <td>{{ product.selling_price }}</td>
-        <td>{{ product.created_at }}</td>
+        <td>{{ row.name }}</td>
+        <td>{{ row.sku }}</td>
+        <td>{{ row.quantity }}</td>
+        <td>{{ row.price }}</td>
+        <td>{{ row.selling_price }}</td>
+        <td>{{ row.created_at }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+
+  <a href="{{ url_for('logout') }}" class="logout">Logout</a>
 </body>
 </html>
