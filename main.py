@@ -3,51 +3,53 @@ from supabase import create_client
 import os
 
 app = Flask(__name__)
-app.secret_key = "supersecret"  # لازم تغيرها لقيمة قوية
+app.secret_key = "supersecretkey"  # غيّرها لقيمة قوية
 
-# 🔹 Supabase config
+# Supabase config
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
+# بيانات الدخول (ممكن تغيرهم أو تجيبهم من قاعدة البيانات لاحقاً)
+USERNAME = "admin"
+PASSWORD = "1234"
 
-# =====================[ صفحة تسجيل الدخول ]=====================
+
+# صفحة تسجيل الدخول
 @app.route("/", methods=["GET", "POST"])
 def login():
-    error = None
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
 
-        # 🔹 تحقق بسيط (ممكن تخلي بيانات المستخدمين بجدول في Supabase)
-        if username == "admin" and password == "1234":
+        if username == USERNAME and password == PASSWORD:
             session["logged_in"] = True
             return redirect(url_for("report"))
         else:
-            error = "اسم المستخدم أو كلمة المرور غير صحيحة"
-    return render_template("login.html", error=error)
+            return render_template("login.html", error="Username or password is incorrect")
+
+    return render_template("login.html")
 
 
-# =====================[ صفحة تقرير الجرد ]=====================
-@app.route("/report")
-def report():
-    if not session.get("logged_in"):
-        return redirect(url_for("login"))
-
-    # جلب البيانات من جدول inventory
-    data = supabase.table("inventory").select("*").execute()
-    rows = data.data if data.data else []
-
-    return render_template("report.html", rows=rows)
-
-
-# =====================[ تسجيل الخروج ]=====================
+# صفحة تسجيل الخروج
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
 
-# =====================[ Run محليًا فقط ]=====================
+# صفحة تقرير المخزون
+@app.route("/report")
+def report():
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
+
+    # جلب البيانات من Supabase
+    data = supabase.table("inventory").select("*").execute()
+    rows = data.data
+
+    return render_template("report.html", rows=rows)
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
