@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background: #007bff; color: white; }
+    .logout { margin-bottom: 15px; display: inline-block; }
+  </style>
+</head>
+<body>
+  <h2>📦 Inventory Report</h2>
+  <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>SKU</th>
+        <th>Quantity</th>
+        <th>Cost Price</th>
+        <th>Selling Price</th>
+        <th>Created At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for product in products %}
+      <tr>
+        <td>{{ product.name }}</td>
+        <td>{{ product.sku }}</td>
+        <td>{{ product.quantity }}</td>
+        <td>{{ product.price }}</td>
+        <td>{{ product.selling_price }}</td>
+        <td>{{ product.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
