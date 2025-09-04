@@ -1,18 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for
 from supabase import create_client, Client
 import os
 
+# إعداد التطبيق
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # غيّرها لمفتاح قوي وسري
 
-# إعداد Supabase
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+# Supabase config
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
+
 supabase: Client = create_client(url, key)
 
-# بيانات تسجيل الدخول (مبدئياً ثابتة)
-USERNAME = "admin"
-PASSWORD = "12345"
 
 # صفحة تسجيل الدخول
 @app.route("/login", methods=["GET", "POST"])
@@ -21,35 +19,24 @@ def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        if username == USERNAME and password == PASSWORD:
-            session["logged_in"] = True
+
+        # تحقق مبدئي (تقدر تغيره لمصادقة حقيقية لاحقًا)
+        if username == "admin" and password == "1234":
             return redirect(url_for("report"))
         else:
-            error = "❌ Invalid username or password"
+            error = "Invalid username or password"
+
     return render_template("login.html", error=error)
 
-# تسجيل الخروج
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
 
-# الصفحة الرئيسية (تحويل للـ report)
+# صفحة التقرير (Inventory Report)
 @app.route("/")
-def home():
-    if not session.get("logged_in"):
-        return redirect(url_for("login"))
-    return redirect(url_for("report"))
-
-# صفحة التقرير
-@app.route("/report")
 def report():
-    if not session.get("logged_in"):
-        return redirect(url_for("login"))
+    data = supabase.table("inventory").select("*").execute()
+    rows = data.data if data.data else []
+    return render_template("report.html", rows=rows)
 
-    response = supabase.table("products").select("*").execute()
-    products = response.data
-    return render_template("report.html", products=products)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
