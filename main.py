@@ -46,11 +46,12 @@ def login():
 
         try:
             response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            print("DEBUG LOGIN RESPONSE:", response)  # 🔎 يظهر في Logs
             if response.user:
                 session["user"] = response.user.email
                 return redirect(url_for("dashboard"))
             else:
-                flash("Invalid credentials!", "danger")
+                flash("Invalid credentials or unconfirmed email!", "danger")
         except Exception as e:
             flash(str(e), "danger")
 
