@@ -1,67 +1,65 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from supabase import create_client
 import os
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # غيّرها لقيمة قوية
+app.secret_key = "your-secret-key"  # ضروري عشان الـ session
 
 # Supabase config
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
-# ---------------------------
-# صفحة تسجيل الدخول
-# ---------------------------
-@app.route("/", methods=["GET", "POST"])
-def login():
-    error = None
+# --- Register Route ---
+@app.route("/register", methods=["GET", "POST"])
+def register():
     if request.method == "POST":
-        username = request.form["username"]
+        email = request.form["email"]
         password = request.form["password"]
 
-        # تسجيل دخول عبر Supabase Auth
         try:
-            user = supabase.auth.sign_in_with_password(
-                {"email": username, "password": password}
-            )
-            if user:
-                session["user"] = username
+            response = supabase.auth.sign_up({"email": email, "password": password})
+            if response.user:
+                flash("✅ Account created! You can now log in.", "success")
+                return redirect(url_for("login"))
+            else:
+                flash("❌ Registration failed. Try again.", "danger")
+        except Exception as e:
+            flash(str(e), "danger")
+
+    return render_template("register.html")
+
+# --- Login Route ---
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        try:
+            response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if response.user:
+                session["user"] = email
                 return redirect(url_for("report"))
             else:
-                error = "Invalid credentials"
+                flash("❌ Invalid credentials", "danger")
         except Exception as e:
-            error = f"Login failed: {e}"
+            flash(str(e), "danger")
 
-    return render_template("login.html", error=error)
+    return render_template("login.html")
 
-# ---------------------------
-# صفحة تقرير الجرد
-# ---------------------------
+# --- Protected Page (Inventory Report) ---
 @app.route("/report")
 def report():
     if "user" not in session:
         return redirect(url_for("login"))
+    return render_template("report.html")
 
-    try:
-        response = supabase.table("inventory").select("*").execute()
-        rows = response.data
-    except Exception as e:
-        rows = []
-        print("Error fetching inventory:", e)
-
-    return render_template("report.html", rows=rows)
-
-# ---------------------------
-# تسجيل الخروج
-# ---------------------------
+# --- Logout ---
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# ---------------------------
-# Run محلياً
-# ---------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
