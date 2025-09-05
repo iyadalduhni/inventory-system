@@ -10,15 +10,13 @@ url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
-
-# ========== ROUTES ==========
+# ---------------- Routes ----------------
 
 @app.route("/")
 def home():
     if "user" in session:
-        return redirect(url_for("report"))
+        return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
-
 
 # ---------- REGISTER ----------
 @app.route("/register", methods=["GET", "POST"])
@@ -33,12 +31,11 @@ def register():
                 flash("Account created successfully! Please login.", "success")
                 return redirect(url_for("login"))
             else:
-                flash("Registration failed. Try another email.", "danger")
+                flash("Registration failed. Try again.", "danger")
         except Exception as e:
             flash(str(e), "danger")
 
     return render_template("register.html")
-
 
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -51,7 +48,7 @@ def login():
             response = supabase.auth.sign_in_with_password({"email": email, "password": password})
             if response.user:
                 session["user"] = response.user.email
-                return redirect(url_for("report"))
+                return redirect(url_for("dashboard"))
             else:
                 flash("Invalid credentials!", "danger")
         except Exception as e:
@@ -59,14 +56,12 @@ def login():
 
     return render_template("login.html")
 
-
-# ---------- LOGOUT ----------
-@app.route("/logout")
-def logout():
-    session.pop("user", None)
-    flash("Logged out successfully.", "info")
-    return redirect(url_for("login"))
-
+# ---------- DASHBOARD ----------
+@app.route("/dashboard")
+def dashboard():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    return render_template("dashboard.html", user=session["user"])
 
 # ---------- REPORT ----------
 @app.route("/report")
@@ -81,9 +76,15 @@ def report():
         items = []
         flash(str(e), "danger")
 
-    return render_template("report.html", items=items)
+    return render_template("report.html", data=items)
 
+# ---------- LOGOUT ----------
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    flash("Logged out successfully.", "info")
+    return redirect(url_for("login"))
 
-# ========== START ==========
+# ---------------- Run ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
