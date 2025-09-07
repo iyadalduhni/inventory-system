@@ -3,54 +3,91 @@
 <head>
     <title>Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f5f5f5; }
-        .dash-box {
-            max-width: 600px;
-            margin: 100px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-    </style>
 </head>
-<body>
+<body class="p-4">
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="#">Inventory System</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav ms-auto">
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('register') }}">Register</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('report') }}">Report</a>
-            </li>
-          </ul>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Inventory System</a>
+            <div class="d-flex">
+                <a href="{{ url_for('report') }}" class="btn btn-primary me-2">📊 View Report</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+            </div>
         </div>
-      </div>
     </nav>
 
-    <!-- Dashboard -->
-    <div class="dash-box">
-        <h2>Welcome, {{ user }}</h2>
-        <p class="text-muted">You are now logged in to the Inventory System.</p>
-        <div class="d-grid gap-3 mt-4">
-            <a href="{{ url_for('report') }}" class="btn btn-primary btn-lg">📊 View Inventory Report</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-lg">🚪 Logout</a>
+    <div class="container">
+        <h2 class="mb-4">Welcome, {{ user }}</h2>
+
+        <div class="row">
+            <!-- AUS Cigarettes -->
+            <div class="col-md-4">
+                <div class="card border-primary mb-3">
+                    <div class="card-header bg-primary text-white">🇦🇺 AUS Cigarettes</div>
+                    <div class="card-body">
+                        {% set aus = products | selectattr("category", "equalto", "AUS") | list %}
+                        {% if aus %}
+                            <ul class="list-group">
+                                {% for p in aus %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ p.name }} ({{ p.quantity }})
+                                        <span class="badge bg-primary">${{ "%.2f"|format(p.price) }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">No AUS Cigarettes</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- International Cigarettes -->
+            <div class="col-md-4">
+                <div class="card border-success mb-3">
+                    <div class="card-header bg-success text-white">🌍 International Cigarettes</div>
+                    <div class="card-body">
+                        {% set intl = products | selectattr("category", "equalto", "INTL") | list %}
+                        {% if intl %}
+                            <ul class="list-group">
+                                {% for p in intl %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ p.name }} ({{ p.quantity }})
+                                        <span class="badge bg-success">${{ "%.2f"|format(p.price) }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">No International Cigarettes</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vapes -->
+            <div class="col-md-4">
+                <div class="card border-warning mb-3">
+                    <div class="card-header bg-warning text-dark">💨 Vapes</div>
+                    <div class="card-body">
+                        {% set vapes = products | selectattr("category", "equalto", "VAPE") | list %}
+                        {% if vapes %}
+                            <ul class="list-group">
+                                {% for p in vapes %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ p.name }} ({{ p.quantity }})
+                                        <span class="badge bg-warning text-dark">${{ "%.2f"|format(p.price) }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">No Vapes</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
+
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
