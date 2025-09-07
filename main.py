@@ -1,107 +1,118 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from supabase import create_client, Client
+from flask import Flask, render_template, request, redirect, url_for, session
+from supabase import create_client
 import os
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # غيّرها لمفتاح قوي
+app.secret_key = "supersecretkey"
 
-# إعداد Supabase
-url = os.getenv("SUPABASE_URL", "https://YOUR_PROJECT.supabase.co")
-key = os.getenv("SUPABASE_KEY", "YOUR_SERVICE_ROLE_KEY")
-supabase: Client = create_client(url, key)
+# Supabase credentials
+url = os.getenv("SUPABASE_URL", "https://YOUR-PROJECT.supabase.co")
+key = os.getenv("SUPABASE_KEY", "YOUR-SERVICE-ROLE-KEY")
+supabase = create_client(url, key)
 
-# الصفحة الرئيسية → تسجيل الدخول
-@app.route("/")
-def home():
-    return redirect(url_for("login"))
-
-# تسجيل مستخدم جديد
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-
-        try:
-            auth_response = supabase.auth.sign_up({"email": email, "password": password})
-            if "user" in auth_response:
-                flash("Registration successful. Please login.", "success")
-                return redirect(url_for("login"))
-            else:
-                flash("Registration failed.", "danger")
-        except Exception as e:
-            flash(str(e), "danger")
-
-    return render_template("register.html")
-
-# تسجيل الدخول
-@app.route("/login", methods=["GET", "POST"])
+# ------------------- AUTH -------------------
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-
+    error = None
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
         try:
             user = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            if user:
-                session["user"] = email
-                return redirect(url_for("dashboard"))
-            else:
-                flash("Invalid credentials", "danger")
+            session['user'] = email
+            return redirect(url_for('dashboard'))
         except Exception as e:
-            flash("Login failed: " + str(e), "danger")
+            error = "Invalid email or password"
+    return render_template("login.html", error=error)
 
-    return render_template("login.html")
 
-# تسجيل الخروج
-@app.route("/logout")
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        try:
+            supabase.auth.sign_up({"email": email, "password": password})
+            return redirect(url_for('login'))
+        except Exception as e:
+            error = "Registration failed. Try another email."
+    return render_template("register.html", error=error)
+
+
+@app.route('/logout')
 def logout():
-    session.pop("user", None)
-    return redirect(url_for("login"))
+    session.pop('user', None)
+    return redirect(url_for('login'))
 
-# صفحة لوحة التحكم
-@app.route("/dashboard")
+# ------------------- DASHBOARD -------------------
+@app.route('/')
+@app.route('/dashboard')
 def dashboard():
-    if "user" not in session:
-        return redirect(url_for("login"))
-    return render_template("dashboard.html", user=session["user"])
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    return render_template("dashboard.html", user=session['user'])
 
-# صفحة الجرد (عرض + إضافة + حذف منتجات)
-@app.route("/report", methods=["GET", "POST"])
+# ------------------- INVENTORY -------------------
+@app.route('/report')
 def report():
-    if "user" not in session:
-        return redirect(url_for("login"))
+    if 'user' not in session:
+        return redirect(url_for('login'))
 
-    # إضافة منتج جديد
-    if request.method == "POST":
-        name = request.form["name"]
-        sku = request.form["sku"]
-        quantity = int(request.form["quantity"])
-        price = float(request.form["price"])
+    products = supabase.table("products").select("*").execute()
+    total_value = sum([p['quantity'] * p['price'] for p in products.data])
+    return render_template("report.html", products=products.data, total_value=total_value)
 
-        supabase.table("products").insert({
-            "name": name,
-            "sku": sku,
-            "quantity": quantity,
-            "price": price
-        }).execute()
 
-        return redirect(url_for("report"))
+@app.route('/add_product', methods=['POST'])
+def add_product():
+    if 'user' not in session:
+        return redirect(url_for('login'))
 
-    # جلب كل المنتجات
-    data = supabase.table("products").select("*").execute()
-    products = data.data if data.data else []
+    name = request.form['name']
+    sku = request.form['sku']
+    quantity = request.form['quantity']
+    price = request.form['price']
 
-    # حساب إجمالي المخزون
-    total_value = sum(p["quantity"] * p["price"] for p in products)
+    supabase.table("products").insert({
+        "name": name,
+        "sku": sku,
+        "quantity": int(quantity),
+        "price": float(price)
+    }).execute()
 
-    return render_template("report.html", products=products, total_value=total_value)
+    return redirect(url_for('report'))
 
-# حذف منتج
-@app.route("/delete_product/<id>", methods=["POST"])
-def delete_product(id):
-    supabase.table("products").delete().eq("id", id).execute()
-    return redirect(url_for("report"))
 
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.route('/delete_product/<string:product_id>')
+def delete_product(product_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    supabase.table("products").delete().eq("id", product_id).execute()
+    return redirect(url_for('report'))
+
+
+@app.route('/edit_product/<string:product_id>', methods=['POST'])
+def edit_product(product_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    name = request.form['name']
+    sku = request.form['sku']
+    quantity = request.form['quantity']
+    price = request.form['price']
+
+    supabase.table("products").update({
+        "name": name,
+        "sku": sku,
+        "quantity": int(quantity),
+        "price": float(price)
+    }).eq("id", product_id).execute()
+
+    return redirect(url_for('report'))
+
+
+# ------------------- RUN -------------------
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
