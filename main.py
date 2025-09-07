@@ -1,91 +1,107 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from supabase import create_client
+from supabase import create_client, Client
 import os
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "super-secret-key")
+app.secret_key = "supersecretkey"  # غيّرها لمفتاح قوي
 
-# Supabase Config
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
-supabase = create_client(url, key)
+# إعداد Supabase
+url = os.getenv("SUPABASE_URL", "https://YOUR_PROJECT.supabase.co")
+key = os.getenv("SUPABASE_KEY", "YOUR_SERVICE_ROLE_KEY")
+supabase: Client = create_client(url, key)
 
-# ---------------- Routes ----------------
-
+# الصفحة الرئيسية → تسجيل الدخول
 @app.route("/")
 def home():
-    if "user" in session:
-        return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
 
-# ---------- REGISTER ----------
+# تسجيل مستخدم جديد
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        email = request.form["email"]
+        password = request.form["password"]
 
         try:
-            response = supabase.auth.sign_up({"email": email, "password": password})
-            if response.user:
-                flash("Account created successfully! Please login.", "success")
+            auth_response = supabase.auth.sign_up({"email": email, "password": password})
+            if "user" in auth_response:
+                flash("Registration successful. Please login.", "success")
                 return redirect(url_for("login"))
             else:
-                flash("Registration failed. Try again.", "danger")
+                flash("Registration failed.", "danger")
         except Exception as e:
             flash(str(e), "danger")
 
     return render_template("register.html")
 
-# ---------- LOGIN ----------
+# تسجيل الدخول
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        email = request.form["email"]
+        password = request.form["password"]
 
         try:
-            response = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            print("DEBUG LOGIN RESPONSE:", response)  # 🔎 يظهر في Logs
-            if response.user:
-                session["user"] = response.user.email
+            user = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if user:
+                session["user"] = email
                 return redirect(url_for("dashboard"))
             else:
-                flash("Invalid credentials or unconfirmed email!", "danger")
+                flash("Invalid credentials", "danger")
         except Exception as e:
-            flash(str(e), "danger")
+            flash("Login failed: " + str(e), "danger")
 
     return render_template("login.html")
 
-# ---------- DASHBOARD ----------
+# تسجيل الخروج
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("login"))
+
+# صفحة لوحة التحكم
 @app.route("/dashboard")
 def dashboard():
     if "user" not in session:
         return redirect(url_for("login"))
     return render_template("dashboard.html", user=session["user"])
 
-# ---------- REPORT ----------
-@app.route("/report")
+# صفحة الجرد (عرض + إضافة + حذف منتجات)
+@app.route("/report", methods=["GET", "POST"])
 def report():
     if "user" not in session:
         return redirect(url_for("login"))
 
-    try:
-        data = supabase.table("inventory").select("*").execute()
-        items = data.data
-    except Exception as e:
-        items = []
-        flash(str(e), "danger")
+    # إضافة منتج جديد
+    if request.method == "POST":
+        name = request.form["name"]
+        sku = request.form["sku"]
+        quantity = int(request.form["quantity"])
+        price = float(request.form["price"])
 
-    return render_template("report.html", data=items)
+        supabase.table("products").insert({
+            "name": name,
+            "sku": sku,
+            "quantity": quantity,
+            "price": price
+        }).execute()
 
-# ---------- LOGOUT ----------
-@app.route("/logout")
-def logout():
-    session.pop("user", None)
-    flash("Logged out successfully.", "info")
-    return redirect(url_for("login"))
+        return redirect(url_for("report"))
 
-# ---------------- Run ----------------
+    # جلب كل المنتجات
+    data = supabase.table("products").select("*").execute()
+    products = data.data if data.data else []
+
+    # حساب إجمالي المخزون
+    total_value = sum(p["quantity"] * p["price"] for p in products)
+
+    return render_template("report.html", products=products, total_value=total_value)
+
+# حذف منتج
+@app.route("/delete_product/<id>", methods=["POST"])
+def delete_product(id):
+    supabase.table("products").delete().eq("id", id).execute()
+    return redirect(url_for("report"))
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
